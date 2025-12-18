@@ -12,6 +12,7 @@ from PIL import Image
 from sklearn.metrics import confusion_matrix, classification_report, mean_squared_error, r2_score
 from sklearn.preprocessing import MinMaxScaler
 import warnings
+import gdown
 
 # ==========================================
 # 1. KONFIGURASI HALAMAN & CLEANING
@@ -51,18 +52,38 @@ MODELS_DB = {
 # ==========================================
 # 3. UTILITIES: LOADER MODEL
 # ==========================================
+DRIVE_IDS = {
+    "model_sampah_terbaik.keras": None,    # (Opsional jika CNN mau ditaruh drive juga)
+    "model_backpro_final.keras":  "13T4PRUlSnM5MKpzcN6lbcVa61KBma5Uv", # <--- WAJIB ISI INI
+    "model_svm.pkl":              "1r2pOm0zk0BkAXjbQTZik0oYigYS7h4k1" # SVM biasanya kecil, tidak perlu Drive
+}
+
 @st.cache_resource
 def load_classification_model(model_name):
     try:
         model_info = MODELS_DB[model_name]
-        file_path = os.path.join(current_dir, model_info['file'])
-        if not os.path.exists(file_path): return None, None
+        filename = model_info['file']
+        file_path = os.path.join(current_dir, filename)
         
+        # --- LOGIC BARU: DOWNLOAD DARI DRIVE JIKA TIDAK ADA ---
+        if not os.path.exists(file_path):
+            file_id = DRIVE_IDS.get(filename)
+            if file_id:
+                with st.spinner(f"📥 Sedang mendownload model {model_name} (300MB+), harap tunggu..."):
+                    url = f'https://drive.google.com/uc?id={file_id}'
+                    gdown.download(url, file_path, quiet=False)
+            else:
+                return None, None
+        # ------------------------------------------------------
+        
+        # Load Model seperti biasa
         if model_info['type'] == 'keras':
             return tf.keras.models.load_model(file_path), 'keras'
         elif model_info['type'] == 'sklearn':
             return joblib.load(file_path), 'sklearn'
+            
     except Exception as e:
+        st.error(f"Gagal load model: {e}")
         return None, None
 
 @st.cache_resource
@@ -476,5 +497,6 @@ with st.sidebar.expander("👥 Anggota Kelompok", expanded=False):
     
     **5. Fiana Wahyu Laura** NIM: 2301020082
     """)
+
 
 st.sidebar.divider()
